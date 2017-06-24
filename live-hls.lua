@@ -18,6 +18,8 @@ chunklist_headers = master_headers;
 -- Set here the http[s] headers used to fetch the master URL
 chunk_headers = master_headers;
 
+-- Session ID specific for Brightcove live SSAI, if you do not want ro use it put sid = "NONE"
+sid = ""
 
 -- Functions
 
@@ -86,9 +88,10 @@ local function absolute_path(base_path, relative_path)
     return path
 end
 
--- TODO: Get session ID from master playlist
-local getSessionIdfromMaterPlaylist = function(master_playlist)
-	return "TODO: SID"
+-- Get session ID from chunklist URL
+local getSessionIdfromChunklistUrl = function(chunklist_abs_url)
+  prot, host ,jobid, region, billingid, profile, sid, fileAndQS = chunklist_abs_url:match("(.+)://(.+)/(.+)/(.+)/(.+)/(.+)/(.+)/(.+)")
+	return sid
 end
 
 -- Fetches the rendition chunklist
@@ -182,51 +185,58 @@ if master_playlist == nil then
   do return end
 end
 
--- Get session from master playlist
-sid = getSessionIdfromMaterPlaylist(master_playlist)
+-- Peak one chunklist random
+chunklist_url = getChunklistUrlFromPlaylist(master_playlist)
+if chunklist_url == nil then
+  log.error("Selecting rendition")
+  do return end
+end
 
-log.debug("("..sid.."): Master playlist fetched:\n"..master_playlist)
+chunklist_abs_url = absolute_path(master_url, chunklist_url)
+
+-- Get session from master playlist (THIS LINE IS SPECIFIC FOR Brightcove live and SSAI)
+if string.len(sid) <= 0 then
+  sid = getSessionIdfromChunklistUrl(chunklist_abs_url)
+  if sid == nil then
+    log.error("Detecting the session ID")
+    do return end
+  end
+end
+
+log.debug("("..sid.."): Downloaded master playlist:\n"..master_playlist..". Rendition selected: " ..chunklist_url)
 
 -- Fetch chunklist & chunks forever
 while( true )
 do
   start_time = os.clock()
 
-  -- Peak one chunklist random
-  chunklist_url = getChunklistUrlFromPlaylist(master_playlist)
-  if chunklist_url == nil then
-    log.error("Selecting rendition")
-  end
-  
-  chunklist_abs_url = absolute_path(master_url, chunklist_url)
-
-  log.debug("("..sid.."): Selected rendition, absolute URL:\n"..chunklist_abs_url)
-
   -- Fetch selected chunklist
   chunklist = fetchChunklist(chunklist_abs_url, chunklist_headers)
   if chunklist == nil then
-    log.error("Fetching chuklist")
+    log.error("("..sid.."): Fetching chuklist")
     do return end
   end
+
+  log.debug("("..sid.."): Downloaded chunklist:\n"..chunklist)
 
   -- Get info from last chunk in the chunklist
   chunk_url, chunk_dur = getLastChunk(chunklist)
   if chunk_url == nil or chunk_dur ==nil then
-    log.error("Chunk info")
+    log.error("("..sid.."): Getting chunk info")
     do return end
   end
   
   chunk_abs_url = absolute_path(chunklist_abs_url, chunk_url)
 
-  log.debug("("..sid.."): Got last chunk absolute URL:\n"..chunk_abs_url.." ("..chunk_dur..")")
-  
   -- fetch chunk urls
   chunk, size = fetchChunk(chunk_abs_url, chunk_headers)
   if chunk == nil then
-    log.error("Fetching chunk")
+    log.error("("..sid.."): Downloading chunk: "..chunk_abs_url)
     do return end
   end
-  
+
+  log.debug("("..sid.."): Downloaded last chunk ("..chunk_dur.."s). Absolute URL:\n"..chunk_abs_url.."")
+    
   -- Uncomment following line to do validations
   -- do return end
   
@@ -234,7 +244,7 @@ do
   used_time = (os.clock() - start_time)
   wait_time = chunk_dur - used_time
   if wait_time > 0 then
-    log.debug("Waiting: "..wait_time.."s. Used time: "..used_time)
+    log.debug("("..sid.."): Waiting: "..wait_time.."s. Used time: "..used_time)
 
     client.sleep(wait_time)  
   end
