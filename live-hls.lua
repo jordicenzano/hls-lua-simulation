@@ -20,8 +20,8 @@ chunk_headers = master_headers;
 -- Session ID specific for Brightcove live SSAI, if you do not want ro use it put sid = "NONE"
 sid = ""
 
--- Time in seconds to substract to the time to wait to ask for the next chunklist
-wait_tolerance = 0
+-- Time in miliseconds to substract to the time to wait to ask for the next chunklist
+wait_tolerance_ms = 0
 
 -- Functions
 
@@ -243,14 +243,15 @@ do
   -- do return end
   
   -- Calculate the delay to fetch the next chunklist
-  used_time = (os.clock() - start_time)
-  wait_time = chunk_dur - used_time - wait_tolerance
-  if wait_time > 0 then
-    log.debug("("..sid.."): Waiting: "..wait_time.."s. Used time: "..used_time)
+  used_time_ms = (os.clock() - start_time) * 1000
+  wait_time_ms = (chunk_dur * 1000) - used_time_ms - wait_tolerance_ms
+  
+  if wait_time_ms > 0 then
+    log.debug("("..sid.."): Waiting: "..wait_time_ms.."ms. Used time: "..used_time_ms.."ms")
 
-    client.sleep(wait_time)  
+    client.sleep(wait_time_ms, 1000)  
   else
-    log.debug("("..sid.."): NO Waiting. Used time: "..used_time)    
+    log.debug("("..sid.."): NO Waiting. Used time: "..used_time_ms)    
   end
    
 end
