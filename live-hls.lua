@@ -1,4 +1,3 @@
-
 -- Set here the master playlist URL
 master_url = "http://playback-qa.a-live.io/16d23cf0ad4742dc80ec6277f2d3162c/us-west-2/BILLING02/014a1e197f474b799309445dc00a26f8/playlist_ssaiM.m3u8"
 
@@ -20,6 +19,9 @@ chunk_headers = master_headers;
 
 -- Session ID specific for Brightcove live SSAI, if you do not want ro use it put sid = "NONE"
 sid = ""
+
+-- Time in seconds to substract to the time to wait to ask for the next chunklist
+wait_tolerance = 0
 
 -- Functions
 
@@ -242,11 +244,13 @@ do
   
   -- Calculate the delay to fetch the next chunklist
   used_time = (os.clock() - start_time)
-  wait_time = chunk_dur - used_time
+  wait_time = chunk_dur - used_time - wait_tolerance
   if wait_time > 0 then
     log.debug("("..sid.."): Waiting: "..wait_time.."s. Used time: "..used_time)
 
     client.sleep(wait_time)  
+  else
+    log.debug("("..sid.."): NO Waiting. Used time: "..used_time)    
   end
    
 end
