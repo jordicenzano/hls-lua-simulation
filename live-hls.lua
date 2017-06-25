@@ -59,8 +59,7 @@ local getChunklistUrlFromPlaylist = function(master_playlist)
       i = i + 1
     end
   end
-  
-  
+
   if (i > 0) then
   	ret = arr[math.random(0, i-1)]
   end
