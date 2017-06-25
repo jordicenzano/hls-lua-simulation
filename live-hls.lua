@@ -1,5 +1,5 @@
 -- Set here the master playlist URL
-master_url = "http://playback-qa.a-live.io/16d23cf0ad4742dc80ec6277f2d3162c/us-west-2/BILLING02/014a1e197f474b799309445dc00a26f8/playlist_ssaiM.m3u8"
+local master_url = "http://playback-qa.a-live.io/16d23cf0ad4742dc80ec6277f2d3162c/us-west-2/BILLING02/014a1e197f474b799309445dc00a26f8/playlist_ssaiM.m3u8"
 
 -- Set here the http[s] headers used to fetch the master URL
 master_headers = {
@@ -12,23 +12,22 @@ master_headers = {
 }
 
 -- Set here the http[s] headers used to fetch the master URL
-chunklist_headers = master_headers;
+local chunklist_headers = master_headers;
 
 -- Set here the http[s] headers used to fetch the master URL
-chunk_headers = master_headers;
+local chunk_headers = master_headers;
 
 -- Session ID specific for Brightcove live SSAI, if you do not want ro use it put sid = "NONE"
-sid = ""
+local sid = ""
 
 -- Time in miliseconds to substract to the time to wait to ask for the next chunklist
-wait_tolerance_ms = 0
+local wait_tolerance_ms = 0
 
 -- Functions
 
 -- Fetches the master playlst
 local fetchMasterPlaylist = function(master_url, master_headers)
-
-  response = http.request({"GET", 
+  local response = http.request({"GET", 
           master_url,
           headers = master_headers,
           response_body_bytes=100000})
@@ -38,18 +37,19 @@ local fetchMasterPlaylist = function(master_url, master_headers)
     return nil
   end 
 
-  return response.body, ""
+  return response.body
 end
 
 -- Randomly selects a chunklist from master playlist
 local getChunklistUrlFromPlaylist = function(master_playlist)
-  arr = {}
-  i = 0
+  local ret = nil
+  local arr = {}
+  local i = 0
   
-  master_playlist_int = master_playlist.."\n"
+  local master_playlist_int = master_playlist.."\n"
   
   for line in master_playlist_int:gmatch"(.-)\n" do
-    pos = string.find(line,"#")
+    local pos = string.find(line,"#")
     if (pos == nil) then
       pos = 99
     end
@@ -60,7 +60,7 @@ local getChunklistUrlFromPlaylist = function(master_playlist)
     end
   end
   
-  ret = nil
+  
   if (i > 0) then
   	ret = arr[math.random(0, i-1)]
   end
@@ -92,13 +92,13 @@ end
 
 -- Get session ID from chunklist URL
 local getSessionIdfromChunklistUrl = function(chunklist_abs_url)
-  prot, host ,jobid, region, billingid, profile, sid, fileAndQS = chunklist_abs_url:match("(.+)://(.+)/(.+)/(.+)/(.+)/(.+)/(.+)/(.+)")
+  local prot, host ,jobid, region, billingid, profile, sid, fileAndQS = chunklist_abs_url:match("(.+)://(.+)/(.+)/(.+)/(.+)/(.+)/(.+)/(.+)")
 	return sid
 end
 
 -- Fetches the rendition chunklist
 local fetchChunklist = function(chunklist_url, chunklist_headers)
-  response = http.request({"GET", 
+  local response = http.request({"GET", 
           chunklist_url,
           headers = chunklist_headers,
           response_body_bytes=1000000})
@@ -113,7 +113,7 @@ end
 
 -- Fetches one chunk
 local fetchChunk = function(chunk_url, chunk_headers)
-  response = http.request({"GET", 
+  local response = http.request({"GET", 
           chunk_url,
           headers = chunk_headers, 
     	  response_body_bytes=1000})
@@ -133,14 +133,14 @@ end
 
 -- Gets the URL from hls chunklist line
 local getLastChunkURL = function(hls_line)
-  ret = nil
-  badd = false
+  local ret = nil
+  local badd = false
   
   if string.len(hls_line) <= 0 then
   	return nil
   end
   
-  pos = hls_line.find(hls_line,"#")
+  local pos = hls_line.find(hls_line,"#")
   
   if (pos == nil) then
     pos = 99
@@ -155,14 +155,14 @@ end
 
 -- Returns URL and duration from the last chunk in the chunklist
 local getLastChunk = function(chunklist)
-  last_url = nil
-  last_dur = nil
+  local last_url = nil
+  local last_dur = nil
     
-  chunklist = chunklist.."\n"
+  local chunklist = chunklist.."\n"
   
   for line in chunklist:gmatch"(.-)\n" do
     
-    last_dur_tmp = getLastChunkDur(line)
+    local last_dur_tmp = getLastChunkDur(line)
     if last_dur_tmp ~= nil then
       last_dur = last_dur_tmp
     else
@@ -181,7 +181,7 @@ end
 -- -----------------
 
 -- read master playlist
-master_playlist, sid = fetchMasterPlaylist(master_url, master_headers)
+master_playlist = fetchMasterPlaylist(master_url, master_headers)
 if master_playlist == nil then
   log.error("Fetching master playlist")
   do return end
@@ -210,7 +210,7 @@ log.debug("("..sid.."): Downloaded master playlist:\n"..master_playlist..". Rend
 -- Fetch chunklist & chunks forever
 while( true )
 do
-  start_time = os.clock()
+  start_time = os.time()
 
   -- Fetch selected chunklist
   chunklist = fetchChunklist(chunklist_abs_url, chunklist_headers)
@@ -243,7 +243,7 @@ do
   -- do return end
   
   -- Calculate the delay to fetch the next chunklist
-  used_time_ms = (os.clock() - start_time) * 1000
+  used_time_ms = (os.time() - start_time) * 1000
   wait_time_ms = (chunk_dur * 1000) - used_time_ms - wait_tolerance_ms
   
   if wait_time_ms > 0 then
